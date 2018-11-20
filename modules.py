@@ -19,10 +19,12 @@ class SrcEmbeddings(nn.Module):
     def __init__(self, d_model, vocab):
         super(SrcEmbeddings, self).__init__()
         self.lut = nn.Embedding(vocab, d_model)
-        #self.lut = nn.Linear(vocab+1, d_model)
+        #self.lut = nn.Linear(vocab, d_model)
         self.d_model = d_model
 
     def forward(self, x):
+        print(x.shape)
+        print(self.lut(x).shape)
         return self.lut(x) * math.sqrt(self.d_model)
     
 class TgtEmbeddings(nn.Module):
@@ -31,12 +33,7 @@ class TgtEmbeddings(nn.Module):
         self.lut = nn.Embedding(vocab, d_model)  
         self.d_model = d_model
 
-    def forward(self, x):
-        
-        print(x)
-        print(self.d_model)
-        print(self.lut(x))
-        
+    def forward(self, x):        
         return self.lut(x) * math.sqrt(self.d_model) 
 
 class LayerNorm(nn.Module):

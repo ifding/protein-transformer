@@ -7,15 +7,15 @@ import subprocess
 from utils import load_gz
 from features import prot_to_vector
 
-TRAIN_PATH = '../../data/cullpdb+profile_6133_filtered.npy.gz'
-TEST_PATH = '../../data/cb513+profile_split1.npy.gz'
+TRAIN_PATH = '../data/cullpdb+profile_6133_filtered.npy.gz'
+TEST_PATH = '../data/cb513+profile_split1.npy.gz'
 DATASET_PATH = '../data/cb513.npz'
 
 # convert onehot to string for both AA and SS
 # NOTE: the ordering of these comes from the dataset readme
 aa_list = ["A", "C", "E", "D", "G", "F", "I", "H", "K", "M", "L", "N", "Q",
-           "P", "S", "R", "T", "W", "V", "Y", "X", "NoSeq"]
-ss_list = ["L", "B", "E", "G", "I", "H", "S", "T", "NoSeq"]
+           "P", "S", "R", "T", "W", "V", "Y", "X", "NoSeq", "<s>", "</s>"]
+ss_list = ["L", "B", "E", "G", "I", "H", "S", "T", "NoSeq", "<s>", "</s>"]
 
 
 def download_dataset():
@@ -68,6 +68,37 @@ def add_features(data):
 
     return new_data, more_features_num
 
+def update_patch(data):
+    num_samples = data.shape[0]     
+    # NOTE: convert one-hot sequence to string
+    seqs_inds = np.argmax(data[:, :, 0:22], axis=2)
+    ss_inds = np.argmax(data[:, :, 22:31], axis=2)
+
+    print(seqs_inds[0])
+    print(ss_inds[0])
+
+    seqs = []
+    ss = []
+    for i in range(seqs_inds.shape[0]):
+        # convert the indices to letters, ignoring noseqs
+        seq = [aa_list[seqs_inds[i,j]] for j in range(seqs_inds.shape[1]) if aa_list[seqs_inds[i,j]] != "NoSeq"]
+        ss_labels = [ss_list[ss_inds[i,j]] for j in range(ss_inds.shape[1]) if ss_list[ss_inds[i,j]] != "NoSeq"]
+        seq.insert(0,"<s>")
+        seq.append("</s>")
+        ss_labels.insert(0,"<s>")
+        ss_labels.append("</s>")
+
+        try:
+            assert len(seq) == len(ss_labels)
+        except:
+            print(seq)
+            print(ss_labels)
+            raise
+        seqs.append(seq)
+        ss.append(ss_labels)
+    print(seqs[0])
+    print(ss[0]) 
+
 def get_():
     X_in = load_gz(TRAIN_PATH)
     X = np.reshape(X_in,(5534,700,57))
@@ -85,22 +116,22 @@ def get_train():
     X = np.reshape(X_in,(5534,700,57))
     del X_in
     X = X[:,:,:]
-    
-    X, new_features_num = add_features(X)  
+
+    #X, new_features_num = add_features(X)
+    update_patch(X)  
     
     labels = X[:,:,22:30]
     mask = X[:,:,30] * -1 + 1
 
     a = np.arange(0,21)
     b = np.arange(35,56)
-    f = np.arange(57,57+new_features_num)
+    #f = np.arange(57,57+new_features_num)
     #c = np.hstack((a,b,f))
     c = np.hstack((a,b))
     X = X[:,:,c]
 
     print("train dataset shape: ", X.shape)
-    print("new features number: ", new_features_num) 
-    
+    #print("new features number: ", new_features_num) 
 
     # getting meta
     num_seqs = np.size(X,0)
@@ -111,6 +142,15 @@ def get_train():
     #### REMAKING LABELS ####
     X = X.astype('float32')
     mask = mask.astype('float32')
+
+    print(X[0].shape)
+    print(len(mask[0]))
+    #print(X[0][314], X[0][315])
+    #print(mask[0][314],mask[0][315] )
+
+    exit()
+
+
     # Dummy -> concat
     vals = np.arange(0,8)
     labels_new = np.zeros((num_seqs,seqlen))
@@ -146,20 +186,20 @@ def get_test():
     del X_test_in
     X_test = X_test[:,:,:].astype('float32')
     
-    X_test, new_features_num = add_features(X_test)
+    #X_test, new_features_num = add_features(X_test)
     
     labels_test = X_test[:,:,22:30]
     mask_test = X_test[:,:,30].astype('float32') * -1 + 1
 
     a = np.arange(0,21)
     b = np.arange(35,56)
-    f = np.arange(57,57+new_features_num)
+    #f = np.arange(57,57+new_features_num)
     #c = np.hstack((a,b,f))
     c = np.hstack((a,b))
     X_test = X_test[:,:,c]
     
     print("test dataset shape: ", X_test.shape)
-    print("new features number: ", new_features_num)     
+    #print("new features number: ", new_features_num)     
 
     # getting meta
     seqlen = np.size(X_test,1)
@@ -167,7 +207,7 @@ def get_test():
     num_classes = 8
     num_seq_test = np.size(X_test,0)
     X_test = X_test.transpose(0, 2, 1)
-    del a, b, f, c
+    #del a, b, f, c
 
     ## DUMMY -> CONCAT ##
     vals = np.arange(0,8)

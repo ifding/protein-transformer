@@ -22,11 +22,10 @@ class EncoderDecoder(nn.Module):
     def forward(self, src, tgt, src_mask, tgt_mask):
         "Take in and process masked src and target sequences."
         
-        print(self.encoder(self.src_embed(src), src_mask).shape)
-        print(self.tgt_embed(tgt).shape)
-        print(self.decoder(self.tgt_embed(tgt), memory, src_mask, tgt_mask).shape)
-        
-        
+        #print(self.encoder(self.src_embed(src), src_mask).shape)
+        #print(self.tgt_embed(tgt).shape)
+        #print(self.decode(self.encode(src, src_mask), src_mask, tgt, tgt_mask).shape)
+               
         return self.decode(self.encode(src, src_mask), src_mask,
                             tgt, tgt_mask)
     
@@ -123,6 +122,7 @@ class LabelSmoothing(nn.Module):
         self.true_dist = None
         
     def forward(self, x, target):
+
         assert x.size(1) == self.size
         true_dist = x.data.clone()
         true_dist.fill_(self.smoothing / (self.size - 2))

@@ -79,10 +79,12 @@ def batch_size_fn(new, count, sofar):
 def data_gen(V_in, V_out, batch, nbatches):
     "Generate random data for a src-tgt copy task."
     for i in range(nbatches):
-        data = torch.from_numpy(np.random.randint(1, V, size=(batch, 10)))
-        data[:, 0] = 1
-        src = Variable(data, requires_grad=False)
-        tgt = Variable(data, requires_grad=False)
+        src_data = torch.from_numpy(np.random.randint(1, V_in, size=(batch, 10)))
+        tgt_data = torch.from_numpy(np.random.randint(1, V_out, size=(batch, 10)))
+        src_data[:, 0] = 1
+        tgt_data[:, 0] = 1
+        src = Variable(src_data, requires_grad=False)
+        tgt = Variable(tgt_data, requires_grad=False)
         yield Batch(src, tgt, 0)
 
 class SimpleLossCompute:
@@ -128,47 +130,62 @@ def rebatch(pad_idx, batch):
 
 
 
-# Train the simple copy task.
-V_in = 42
-V_out = 8
-criterion = LabelSmoothing(size=V_in, padding_idx=0, smoothing=0.0)
-model = make_model(V_in, V_out, N=2)
-model_opt = NoamOpt(model.src_embed[0].d_model, 1, 400,
-        torch.optim.Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9))
-
-for epoch in range(1):
-    model.train()
-    run_epoch(data_gen(V_in, V_out, 32, 20), model, 
-              SimpleLossCompute(model.generator, criterion, model_opt))
-    model.eval()
-    print(run_epoch(data_gen(V_in, V_out, 32, 5), model, 
-                    SimpleLossCompute(model.generator, criterion, None)))
-
-model.eval()
-src = Variable(torch.LongTensor([[1,2,3,4,5,6,7,8,9,10]]) )
-src_mask = Variable(torch.ones(1, 1, 10) )
-print(greedy_decode(model, src, src_mask, max_len=10, start_symbol=1))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 def main():
+
+    # laod dataset and set k-fold cross validation
+    D = LoadDataset(args.batch_size_train, args.batch_size_test)
+    idxs = np.arange(D.__len__())
+    
+    train_idx = np.array(idxs[0:5534])
+    #valid_idx = np.array(idxs[5278:5534])
+    test_idx = np.array(idxs[5534:6048])
+    #test_idx = np.array(idxs[5278:5534])
+    
+    idx = (train_idx, test_idx)
+    train_loader, test_loader = D(idx)
+
+
+    # Train the simple copy task.
+    V_in = 21
+    V_out = 8
+    criterion = LabelSmoothing(size=V_out, padding_idx=0, smoothing=0.0)
+    model = make_model(V_in, V_out, N=2)
+    model_opt = NoamOpt(model.src_embed[0].d_model, 1, 400,
+            torch.optim.Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9))
+    
+    for epoch in range(1):
+        model.train()
+        run_epoch(data_gen(V_in, V_out, 32, 20), model, 
+                  SimpleLossCompute(model.generator, criterion, model_opt))
+        model.eval()
+        print(run_epoch(data_gen(V_in, V_out, 32, 5), model, 
+                        SimpleLossCompute(model.generator, criterion, None)))
+    
+    model.eval()
+    src = Variable(torch.LongTensor([[1,2,3,4,5,6,7,8,9,10]]) )
+    src_mask = Variable(torch.ones(1, 1, 10) )
+    print(greedy_decode(model, src, src_mask, max_len=10, start_symbol=1))
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def mains_():
 
     # Train the simple copy task.
     V_in = 11
@@ -284,5 +301,5 @@ def main_():
     save_history(history, save_dir)
 
 
-#if __name__ == '__main__':
-#    main()
+if __name__ == '__main__':
+    main()
